@@ -146,3 +146,13 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+app.get("/api/circuits", async (req, res) => {
+  try {
+    const circuits = await db.query("SELECT * FROM circuits ORDER BY id");
+    res.json(circuits.rows);
+  } catch (err) {
+    console.error("Error fetching circuits:", err);
+    res.status(500).json({ error: "Failed to fetch circuits" });
+  }
+});
