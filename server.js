@@ -1,174 +1,148 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const { Pool } = require('pg');
+const express = require("express");
+const { Pool } = require("pg");
+const cors = require("cors");
+require("dotenv").config();
 
-dotenv.config();
+const fetch = require("node-fetch");
 
 const app = express();
+const pool = new Pool({
+  user: process.env.DB_USER || "postgres",
+  password: process.env.DB_PASSWORD || "postgres",
+  host: process.env.DB_HOST || "localhost",
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || "motogp_mvp",
+});
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// PostgreSQL connection pool
-const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'motogp_mvp',
-});
-
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-});
-
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Database connection error:', err);
-  } else {
-    console.log('Database connected:', res.rows[0]);
-  }
-});
-
-// ============ RIDERS ENDPOINTS ============
-
 // Get all riders
-app.get('/api/riders', async (req, res) => {
+app.get("/api/riders", async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM riders ORDER BY number ASC');
+    const result = await pool.query(`
+      SELECT r.*, 
+        rss2026.total_points as season_2026_points,
+        rss2025.total_points as season_2025_points
+      FROM riders r
+      LEFT JOIN rider_season_stats rss2026 ON r.id = rss2026.rider_id AND rss2026.season = 2026
+      LEFT JOIN rider_season_stats rss2025 ON r.id = rss2025.rider_id AND rss2025.season = 2025
+      ORDER BY rss2025.total_points DESC NULLS LAST, r.number ASC
+    `);
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch riders' });
+    console.error("Database error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Get single rider with season and career stats
-app.get('/api/riders/:id', async (req, res) => {
-  const { id } = req.params;
+// Get rider by ID with full stats
+app.get("/api/riders/:id", async (req, res) => {
   try {
-    const rider = await pool.query('SELECT * FROM riders WHERE id = $1', [id]);
-    if (rider.rows.length === 0) {
-      return res.status(404).json({ error: 'Rider not found' });
-    }
-
-    const careerStats = await pool.query(
-      'SELECT * FROM rider_career_stats WHERE rider_id = $1',
-      [id]
-    );
-
-    // Get current season (2024 or latest)
-    const currentSeason = 2024;
+    const { id } = req.params;
+    const rider = await pool.query("SELECT * FROM riders WHERE id = $1", [id]);
     const seasonStats = await pool.query(
-      'SELECT * FROM rider_season_stats WHERE rider_id = $1 AND season = $2',
-      [id, currentSeason]
+      "SELECT * FROM rider_season_stats WHERE rider_id = $1 AND season = 2026",
+      [id],
+    );
+    const careerStats = await pool.query(
+      "SELECT * FROM rider_career_stats WHERE rider_id = $1",
+      [id],
     );
 
     res.json({
-      rider: rider.rows[0],
-      careerStats: careerStats.rows[0],
+      ...rider.rows[0],
       seasonStats: seasonStats.rows[0],
+      careerStats: careerStats.rows[0],
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch rider details' });
+    console.error("Database error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ============ CALENDAR/RACES ENDPOINTS ============
-
-// Get all races for current season
-app.get('/api/races', async (req, res) => {
-  const season = req.query.season || 2024;
+// Get all races for a season
+app.get("/api/races", async (req, res) => {
   try {
+    const { season = 2026 } = req.query;
     const result = await pool.query(
-      'SELECT * FROM races WHERE season = $1 ORDER BY round ASC',
-      [season]
+      "SELECT * FROM races WHERE season = $1 ORDER BY race_date ASC",
+      [season],
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch races' });
+    console.error("Database error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Get race details with results
-app.get('/api/races/:id', async (req, res) => {
-  const { id } = req.params;
+// AI Insights endpoint
+app.post("/api/ai-insights", async (req, res) => {
   try {
-    const race = await pool.query('SELECT * FROM races WHERE id = $1', [id]);
-    if (race.rows.length === 0) {
-      return res.status(404).json({ error: 'Race not found' });
+    console.log("Received body:", req.body);
+
+    const { riderName, riderNumber, team, totalPoints, wins, poles, podiums } =
+      req.body;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-5-20251101",
+        max_tokens: 1500,
+        messages: [
+          {
+            role: "user",
+            content: `You are a MotoGP expert analyst. Provide insights for ${riderName} (#${riderNumber}) from ${team}.
+            
+Career Stats: ${totalPoints} points, ${wins} wins, ${podiums} podiums, ${poles} poles
+
+Return ONLY valid JSON, no markdown or code blocks. Use this format:
+{
+  "bio": "2-3 sentence professional bio of the rider",
+  "analysis": {
+    "strengths": ["strength 1", "strength 2", "strength 3"],
+    "weaknesses": ["area 1", "area 2", "area 3"]
+  },
+  "prediction": "1-2 sentence prediction for their next race performance"
+}`,
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!data.content || !data.content[0]) {
+      console.error("Unexpected API response:", data);
+      return res.status(500).json({ error: "Invalid API response" });
     }
 
-    const results = await pool.query(
-      `SELECT rr.*, r.name, r.number 
-       FROM race_results rr
-       JOIN riders r ON rr.rider_id = r.id
-       WHERE rr.race_id = $1
-       ORDER BY rr.finish_position ASC`,
-      [id]
-    );
+    let content = data.content[0].text;
+    console.log("Raw content:", content);
 
-    // Get circuit history (last 3 years)
-    const circuit = race.rows[0].circuit_name;
-    const season = race.rows[0].season;
-    const history = await pool.query(
-      `SELECT cs.*, 
-              w.name as winner_name, w.number as winner_number,
-              p.name as pole_name, p.number as pole_number,
-              f.name as fastest_lap_name, f.number as fastest_lap_number,
-              s2.name as second_place_name, s2.number as second_place_number,
-              s3.name as third_place_name, s3.number as third_place_number
-       FROM circuit_stats cs
-       LEFT JOIN riders w ON cs.winner_id = w.id
-       LEFT JOIN riders p ON cs.pole_holder_id = p.id
-       LEFT JOIN riders f ON cs.fastest_lap_holder_id = f.id
-       LEFT JOIN riders s2 ON cs.second_place_id = s2.id
-       LEFT JOIN riders s3 ON cs.third_place_id = s3.id
-       WHERE cs.year >= $1 - 3 AND cs.year < $1
-       ORDER BY cs.year DESC`,
-      [season]
-    );
+    // More aggressive cleaning
+    content = content
+      .replace(/^```[\w]*\n?/g, "")
+      .replace(/\n?```$/g, "")
+      .trim();
 
-    res.json({
-      race: race.rows[0],
-      results: results.rows,
-      history: history.rows,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch race details' });
+    console.log("Cleaned content:", content);
+
+    const insights = JSON.parse(content);
+
+    res.json(insights);
+  } catch (error) {
+    console.error("Parse error:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Get race results for a specific rider
-app.get('/api/riders/:riderId/races/:season', async (req, res) => {
-  const { riderId, season } = req.params;
-  try {
-    const result = await pool.query(
-      `SELECT rr.*, r.name as race_name, r.circuit_name, r.race_date
-       FROM race_results rr
-       JOIN races r ON rr.race_id = r.id
-       WHERE rr.rider_id = $1 AND r.season = $2
-       ORDER BY r.race_date ASC`,
-      [riderId, season]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch rider race results' });
-  }
-});
-
-// ============ SERVER START ============
-
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-module.exports = { pool, app };

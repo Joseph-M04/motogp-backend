@@ -1,0 +1,26 @@
+{
+  "riders": [
+    {"number": 5, "name": "Johann Zarco", "wins": 2, "poles": 3, "podiums": 23, "fastest_laps": 1, "races_completed": 250, "titles": 1},
+    {"number": 7, "name": "Toprak Razaztlioglu", "wins": 0, "poles": 0, "podiums": 0, "fastest_laps": 0, "races_completed": 0, "titles": 0},
+    {"number": 10, "name": "Luca Marini", "wins": 0, "poles": 0, "podiums": 6, "fastest_laps": 0, "races_completed": 89, "titles": 1},
+    {"number": 11, "name": "Fermin Aldeguer", "wins": 1, "poles": 1, "podiums": 6, "fastest_laps": 1, "races_completed": 34, "titles": 1},
+    {"number": 12, "name": "Maverick Viñales", "wins": 10, "poles": 16, "podiums": 70, "fastest_laps": 8, "races_completed": 189, "titles": 1},
+    {"number": 20, "name": "Fabio Quartararo", "wins": 5, "poles": 7, "podiums": 38, "fastest_laps": 6, "races_completed": 134, "titles": 2},
+    {"number": 21, "name": "Franco Morbidelli", "wins": 1, "poles": 0, "podiums": 15, "fastest_laps": 0, "races_completed": 124, "titles": 1},
+    {"number": 23, "name": "Enea Bastianini", "wins": 5, "poles": 2, "podiums": 21, "fastest_laps": 2, "races_completed": 98, "titles": 1},
+    {"number": 25, "name": "Raúl Fernández", "wins": 0, "poles": 0, "podiums": 5, "fastest_laps": 0, "races_completed": 67, "titles": 1},
+    {"number": 31, "name": "Pedro Acosta", "wins": 3, "poles": 3, "podiums": 18, "fastest_laps": 2, "races_completed": 45, "titles": 2},
+    {"number": 33, "name": "Brad Binder", "wins": 4, "poles": 2, "podiums": 28, "fastest_laps": 3, "races_completed": 145, "titles": 1},
+    {"number": 36, "name": "Joan Mir", "wins": 2, "poles": 4, "podiums": 28, "fastest_laps": 1, "races_completed": 156, "titles": 2},
+    {"number": 42, "name": "Alex Rins", "wins": 3, "poles": 0, "podiums": 26, "fastest_laps": 2, "races_completed": 178, "titles": 1},
+    {"number": 43, "name": "Jack Miller", "wins": 0, "poles": 0, "podiums": 6, "fastest_laps": 0, "races_completed": 56, "titles": 1},
+    {"number": 49, "name": "Fabio di Giannantonio", "wins": 0, "poles": 0, "podiums": 10, "fastest_laps": 0, "races_completed": 78, "titles": 1},
+    {"number": 63, "name": "Francesco Bagnaia", "wins": 44, "poles": 44, "podiums": 89, "fastest_laps": 32, "races_completed": 145, "titles": 3},
+    {"number": 72, "name": "Marco Bezzecchi", "wins": 2, "poles": 1, "podiums": 14, "fastest_laps": 1, "races_completed": 89, "titles": 1},
+    {"number": 73, "name": "Álex Márquez", "wins": 3, "poles": 3, "podiums": 22, "fastest_laps": 1, "races_completed": 112, "titles": 1},
+    {"number": 79, "name": "Ai Ogura", "wins": 0, "poles": 0, "podiums": 2, "fastest_laps": 0, "races_completed": 34, "titles": 0},
+    {"number": 88, "name": "Miguel Oliveira", "wins": 2, "poles": 3, "podiums": 25, "fastest_laps": 2, "races_completed": 167, "titles": 2},
+    {"number": 89, "name": "Jorge Martín", "wins": 26, "poles": 28, "podiums": 82, "fastest_laps": 15, "races_completed": 134, "titles": 1},
+    {"number": 93, "name": "Marc Márquez", "wins": 69, "poles": 81, "podiums": 155, "fastest_laps": 52, "races_completed": 234, "titles": 9}
+  ]
+}
