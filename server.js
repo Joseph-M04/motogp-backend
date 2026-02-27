@@ -76,6 +76,17 @@ app.get("/api/races", async (req, res) => {
   }
 });
 
+// Get all circuits
+app.get("/api/circuits", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM circuits ORDER BY id");
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Database error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // AI Insights endpoint
 app.post("/api/ai-insights", async (req, res) => {
   try {
@@ -125,7 +136,6 @@ Return ONLY valid JSON, no markdown or code blocks. Use this format:
     let content = data.content[0].text;
     console.log("Raw content:", content);
 
-    // More aggressive cleaning
     content = content
       .replace(/^```[\w]*\n?/g, "")
       .replace(/\n?```$/g, "")
@@ -145,14 +155,4 @@ Return ONLY valid JSON, no markdown or code blocks. Use this format:
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
-
-app.get("/api/circuits", async (req, res) => {
-  try {
-    const circuits = await db.query("SELECT * FROM circuits ORDER BY id");
-    res.json(circuits.rows);
-  } catch (err) {
-    console.error("Error fetching circuits:", err);
-    res.status(500).json({ error: "Failed to fetch circuits" });
-  }
 });
