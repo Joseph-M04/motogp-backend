@@ -66,12 +66,70 @@ app.get("/api/races", async (req, res) => {
   try {
     const { season = 2026 } = req.query;
     const result = await pool.query(
-      "SELECT * FROM races WHERE season = $1 ORDER BY race_date ASC",
+      `SELECT r.*, c.photo_url, c.track_length_km, c.turns, c.race_laps,
+              c.top_speed_kmh, c.description, c.map_lat, c.map_lng,
+              c.lap_record, c.lap_record_holder, c.lap_record_year, c.flag
+       FROM races r
+       LEFT JOIN circuits c ON r.circuit_id = c.id
+       WHERE r.season = $1
+       ORDER BY r.race_date ASC`,
       [season],
     );
     res.json(result.rows);
   } catch (err) {
     console.error("Database error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+// Get next upcoming race with circuit details
+app.get("/api/races/next", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT r.*, c.name as circuit_full_name, c.city, c.flag, c.track_length_km, 
+             c.turns, c.race_laps, c.description, c.map_lat, c.map_lng, c.top_speed_kmh
+      FROM races r
+      LEFT JOIN circuits c ON r.circuit_id = c.id
+      WHERE r.season = 2026 AND r.status = 'upcoming'
+      ORDER BY r.race_date ASC
+      LIMIT 1
+    `);
+    res.json(result.rows[0] || null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get race results for a specific race
+app.get("/api/races/:id/results", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { session = 'race' } = req.query;
+    const result = await pool.query(`
+      SELECT rr.*, r.name as rider_name, r.number, r.team, r.country
+      FROM race_results rr
+      JOIN riders r ON rr.rider_id = r.id
+      WHERE rr.race_id = $1 AND rr.session_type = $2
+      ORDER BY rr.finish_position ASC NULLS LAST
+    `, [id, session]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get last completed race with results
+app.get("/api/races/last", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT r.*, c.flag
+      FROM races r
+      LEFT JOIN circuits c ON r.circuit_id = c.id
+      WHERE r.season = 2026 AND r.status = 'completed'
+      ORDER BY r.race_date DESC
+      LIMIT 1
+    `);
+    res.json(result.rows[0] || null);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -155,4 +213,52 @@ Return ONLY valid JSON, no markdown or code blocks. Use this format:
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Championship progression - points per rider per round
+app.get("/api/championship/progression", async (req, res) => {
+  try {
+    const { season = 2026 } = req.query;
+    const result = await pool.query(`
+      SELECT rider_id, name, number, team, round, MAX(cumulative_points) as cumulative_points
+      FROM (
+        SELECT 
+          r.id as rider_id, r.name, r.number, r.team,
+          ra.round,
+          SUM(rr.points) OVER (
+            PARTITION BY r.id 
+            ORDER BY ra.round, rr.session_type
+            ROWS UNBOUNDED PRECEDING
+          ) as cumulative_points
+        FROM riders r
+        JOIN race_results rr ON r.id = rr.rider_id
+        JOIN races ra ON rr.race_id = ra.id
+        WHERE ra.season = $1 AND rr.session_type IN ('race', 'sprint')
+      ) sub
+      GROUP BY rider_id, name, number, team, round
+      ORDER BY round, cumulative_points DESC
+    `, [season]);
+    
+    // Group by rider
+    const riders = {};
+    result.rows.forEach(row => {
+      if (!riders[row.rider_id]) {
+        riders[row.rider_id] = {
+          rider_id: row.rider_id,
+          name: row.name,
+          number: row.number,
+          team: row.team,
+          rounds: []
+        };
+      }
+      riders[row.rider_id].rounds.push({
+        round: row.round,
+        cumulative_points: parseInt(row.cumulative_points)
+      });
+    });
+    
+    res.json(Object.values(riders));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });

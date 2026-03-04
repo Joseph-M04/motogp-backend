@@ -15,17 +15,39 @@ async function seedDatabase() {
   try {
     console.log("Starting 2026 MotoGP database seed...\n");
 
+    // Fix rider numbers that changed for the 2026 season (only if target number doesn't already exist)
+    const numberFixes = [
+      { oldNumber: 1, newNumber: 63 },   // Bagnaia: was using #1 as champion, reverts to #63
+      { oldNumber: 27, newNumber: 72 },  // Bezzecchi: correct permanent number
+      { oldNumber: 31, newNumber: 37 },  // Acosta: correct permanent number
+      { oldNumber: 11, newNumber: 54 },  // Aldeguer: changed number for 2026
+    ];
+    for (const fix of numberFixes) {
+      // Only update if the old number exists AND the new number does NOT yet exist
+      const check = await pool.query(
+        "SELECT COUNT(*) FROM riders WHERE number = $1",
+        [fix.newNumber],
+      );
+      if (parseInt(check.rows[0].count) === 0) {
+        await pool.query(
+          "UPDATE riders SET number = $1 WHERE number = $2",
+          [fix.newNumber, fix.oldNumber],
+        );
+      }
+    }
+    console.log("✓ Fixed rider numbers for 2026");
+
     const riders = [
       {
         name: "Francesco Bagnaia",
-        number: 1,
-        team: "Ducati Lenovo",
+        number: 63,
+        team: "Ducati Lenovo Team",
         country: "Italy",
       },
       {
         name: "Marc Marquez",
         number: 93,
-        team: "Ducati Lenovo",
+        team: "Ducati Lenovo Team",
         country: "Spain",
       },
       {
@@ -36,20 +58,20 @@ async function seedDatabase() {
       },
       {
         name: "Marco Bezzecchi",
-        number: 27,
+        number: 72,
         team: "Aprilia Racing",
         country: "Italy",
       },
       {
         name: "Pedro Acosta",
-        number: 31,
-        team: "Red Bull KTM Factory",
+        number: 37,
+        team: "Red Bull KTM Factory Racing",
         country: "Spain",
       },
       {
         name: "Brad Binder",
         number: 33,
-        team: "Red Bull KTM Factory",
+        team: "Red Bull KTM Factory Racing",
         country: "South Africa",
       },
       {
@@ -59,7 +81,7 @@ async function seedDatabase() {
         country: "Italy",
       },
       {
-        name: "Maverick Vinales",
+        name: "Maverick Viñales",
         number: 12,
         team: "Red Bull KTM Tech3",
         country: "Spain",
@@ -79,13 +101,13 @@ async function seedDatabase() {
       {
         name: "Alex Marquez",
         number: 73,
-        team: "Gresini Racing",
+        team: "BK8 Gresini Racing",
         country: "Spain",
       },
       {
         name: "Fermin Aldeguer",
-        number: 11,
-        team: "Gresini Racing",
+        number: 54,
+        team: "BK8 Gresini Racing",
         country: "Spain",
       },
       {
@@ -101,10 +123,10 @@ async function seedDatabase() {
         country: "Spain",
       },
       {
-        name: "Miguel Oliveira",
-        number: 88,
+        name: "Toprak Razgatlioglu",
+        number: 7,
         team: "Prima Pramac Yamaha",
-        country: "Portugal",
+        country: "Turkey",
       },
       {
         name: "Jack Miller",
@@ -115,39 +137,44 @@ async function seedDatabase() {
       {
         name: "Joan Mir",
         number: 36,
-        team: "Castrol Honda Racing",
+        team: "Honda HRC Castrol",
         country: "Spain",
       },
       {
         name: "Luca Marini",
         number: 10,
-        team: "Castrol Honda Racing",
+        team: "Honda HRC Castrol",
         country: "Italy",
       },
-      { name: "Johann Zarco", number: 5, team: "LCR Honda", country: "France" },
       {
-        name: "Somkiat Chantra",
-        number: 64,
-        team: "Idemitsu LCR Honda",
-        country: "Thailand",
+        name: "Johann Zarco",
+        number: 5,
+        team: "Castrol Honda LCR",
+        country: "France",
+      },
+      {
+        name: "Diogo Moreira",
+        number: 11,
+        team: "LCR Honda",
+        country: "Brazil",
       },
       {
         name: "Raul Fernandez",
         number: 25,
-        team: "Trackhouse Racing",
+        team: "Trackhouse MotoGP",
         country: "Spain",
       },
       {
         name: "Ai Ogura",
         number: 79,
-        team: "Trackhouse Racing",
+        team: "Trackhouse MotoGP",
         country: "Japan",
       },
     ];
 
     for (const rider of riders) {
       await pool.query(
-        "INSERT INTO riders (name, number, team, country) VALUES ($1, $2, $3, $4) ON CONFLICT (number) DO UPDATE SET team = $3, country = $4",
+        "INSERT INTO riders (name, number, team, country) VALUES ($1, $2, $3, $4) ON CONFLICT (number) DO UPDATE SET name = $1, team = $3, country = $4",
         [rider.name, rider.number, rider.team, rider.country],
       );
     }
